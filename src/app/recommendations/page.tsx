@@ -11,12 +11,23 @@ type MatchRow = {
   jobs: { title: string; region: string | null; job_type: string | null } | null
 }
 
-export default async function RecommendationsPage() {
-  const { data } = await supabase
+type Props = {
+  searchParams: Promise<{ senior_id?: string }>
+}
+
+export default async function RecommendationsPage({ searchParams }: Props) {
+  const { senior_id } = await searchParams
+
+  let query = supabase
     .from('matches')
     .select('id, score, status, seniors(name, region, desired_job), jobs(title, region, job_type)')
     .order('score', { ascending: false })
 
+  if (senior_id) {
+    query = query.eq('senior_id', senior_id)
+  }
+
+  const { data } = await query
   const matches = (data ?? []) as unknown as MatchRow[]
 
   return (
@@ -34,14 +45,20 @@ export default async function RecommendationsPage() {
 
         {matches.length === 0 ? (
           <div className="bg-white rounded-2xl shadow p-16 text-center">
-            <p className="text-2xl text-gray-400 mb-2">매칭 결과가 없습니다.</p>
-            <p className="text-lg text-gray-400 mb-8">시니어 프로필을 먼저 등록해 주세요.</p>
-            <Link
-              href="/register"
-              className="inline-block py-4 px-10 bg-blue-600 hover:bg-blue-700 text-white text-xl font-bold rounded-2xl transition-colors"
-            >
-              프로필 등록하기
-            </Link>
+            {senior_id ? (
+              <p className="text-2xl text-gray-400">현재 매칭되는 일자리가 없습니다.</p>
+            ) : (
+              <>
+                <p className="text-2xl text-gray-400 mb-2">매칭 결과가 없습니다.</p>
+                <p className="text-lg text-gray-400 mb-8">시니어 프로필을 먼저 등록해 주세요.</p>
+                <Link
+                  href="/register"
+                  className="inline-block py-4 px-10 bg-blue-600 hover:bg-blue-700 text-white text-xl font-bold rounded-2xl transition-colors"
+                >
+                  프로필 등록하기
+                </Link>
+              </>
+            )}
           </div>
         ) : (
           <div className="flex flex-col gap-4">
@@ -58,25 +75,19 @@ export default async function RecommendationsPage() {
                     <p className="text-xl font-bold text-gray-900">{m.seniors?.name}</p>
                     <p className="text-base text-gray-500">{m.seniors?.region} · {m.seniors?.desired_job}</p>
                   </div>
-
                   <span className="text-gray-300 text-2xl hidden sm:block">→</span>
-
                   <div className="flex-1 min-w-40">
                     <p className="text-xl font-bold text-gray-900">{m.jobs?.title}</p>
                     <p className="text-base text-gray-500">{m.jobs?.region} · {m.jobs?.job_type}</p>
                   </div>
-
                   <span className={`px-4 py-2 rounded-full text-xl font-bold ${scoreColor}`}>
                     {m.score}점
                   </span>
-
-                  <span
-                    className={`px-3 py-1 rounded-full text-sm font-medium ${
-                      m.status === 'assigned'
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-yellow-100 text-yellow-700'
-                    }`}
-                  >
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                    m.status === 'assigned'
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-yellow-100 text-yellow-700'
+                  }`}>
                     {m.status === 'assigned' ? '배정 완료' : '매칭 대기'}
                   </span>
                 </div>

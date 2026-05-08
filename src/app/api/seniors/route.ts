@@ -23,7 +23,7 @@ export async function POST(req: Request) {
         score: computeScore(senior, job),
         status: 'pending',
       }))
-      .filter((r) => r.score > 0)
+      .filter((r) => r.score >= 40)
 
     if (rows.length) await supabase.from('matches').insert(rows)
   }
