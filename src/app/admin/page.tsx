@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { revalidatePath } from 'next/cache'
+import Link from 'next/link'
 
 export const dynamic = 'force-dynamic'
 
@@ -36,18 +37,33 @@ export default async function AdminPage() {
       .order('score', { ascending: false }),
   ])
 
-  const seniors = (rawSeniors ?? []) as Senior[]
-  const matches = (rawMatches ?? []) as unknown as MatchRow[]
+  const seniors  = (rawSeniors  ?? []) as Senior[]
+  const matches  = (rawMatches  ?? []) as unknown as MatchRow[]
 
   const matchedIds = new Set(matches.map((m) => m.senior_id))
-  const unmatched = seniors.filter((s) => !matchedIds.has(s.id))
-  const pending  = matches.filter((m) => m.status === 'pending')
-  const assigned = matches.filter((m) => m.status === 'assigned')
+  const unmatched  = seniors.filter((s) => !matchedIds.has(s.id))
+  const pending    = matches.filter((m) => m.status === 'pending')
+  const assigned   = matches.filter((m) => m.status === 'assigned')
 
   const summary = [
-    { label: '미매칭',   count: unmatched.length, border: 'border-red-400',    bg: 'bg-red-50',    badge: 'bg-red-100 text-red-700'    },
-    { label: '매칭 대기', count: pending.length,  border: 'border-yellow-400', bg: 'bg-yellow-50', badge: 'bg-yellow-100 text-yellow-700' },
-    { label: '배정 완료', count: assigned.length, border: 'border-green-400',  bg: 'bg-green-50',  badge: 'bg-green-100 text-green-700'  },
+    {
+      label: '미매칭',   count: unmatched.length,
+      icon: '⚠️',
+      border: 'border-red-400',    bg: 'bg-red-50',
+      badge: 'bg-red-100 text-red-700',
+    },
+    {
+      label: '매칭 대기', count: pending.length,
+      icon: '🕐',
+      border: 'border-yellow-400', bg: 'bg-yellow-50',
+      badge: 'bg-yellow-100 text-yellow-700',
+    },
+    {
+      label: '배정 완료', count: assigned.length,
+      icon: '✅',
+      border: 'border-green-400',  bg: 'bg-green-50',
+      badge: 'bg-green-100 text-green-700',
+    },
   ]
 
   return (
@@ -58,9 +74,15 @@ export default async function AdminPage() {
 
         {/* 요약 카드 */}
         <div className="grid grid-cols-3 gap-6 mb-10">
-          {summary.map(({ label, count, border, bg, badge }) => (
-            <div key={label} className={`rounded-2xl border-2 ${border} ${bg} p-6 flex items-center justify-between`}>
-              <span className="text-2xl font-bold text-gray-800">{label}</span>
+          {summary.map(({ label, count, icon, border, bg, badge }) => (
+            <div
+              key={label}
+              className={`rounded-2xl border-2 ${border} ${bg} p-6 flex items-center justify-between`}
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-3xl">{icon}</span>
+                <span className="text-2xl font-bold text-gray-800">{label}</span>
+              </div>
               <span className={`px-3 py-1 rounded-full text-xl font-bold ${badge}`}>{count}건</span>
             </div>
           ))}
@@ -77,7 +99,14 @@ export default async function AdminPage() {
                 <td className="py-4 px-4 text-base text-gray-600">{s.region ?? '—'}</td>
                 <td className="py-4 px-4 text-base text-gray-600">{s.desired_job ?? '—'}</td>
                 <td className="py-4 px-4 text-base text-gray-400">—</td>
-                <td className="py-4 px-4" />
+                <td className="py-4 px-4 text-right">
+                  <Link
+                    href={`/recommendations?senior_id=${s.id}`}
+                    className="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-base font-semibold rounded-xl border border-blue-200 transition-colors"
+                  >
+                    상세 보기
+                  </Link>
+                </td>
               </TableRow>
             ))
           )}
@@ -94,19 +123,28 @@ export default async function AdminPage() {
                 <td className="py-4 px-4 text-base text-gray-600">{m.seniors?.region ?? '—'}</td>
                 <td className="py-4 px-4 text-base text-gray-600">{m.seniors?.desired_job ?? '—'}</td>
                 <td className="py-4 px-4 text-base text-gray-700">
-                  {m.jobs?.title} <span className="text-gray-400 text-sm">({m.jobs?.region})</span>
+                  {m.jobs?.title}{' '}
+                  <span className="text-gray-400 text-sm">({m.jobs?.region})</span>
                   <span className="ml-2 text-blue-700 font-semibold">{m.score}점</span>
                 </td>
                 <td className="py-4 px-4 text-right">
-                  <form action={assignMatch}>
-                    <input type="hidden" name="matchId" value={m.id} />
-                    <button
-                      type="submit"
-                      className="px-5 py-2 bg-green-600 hover:bg-green-700 text-white text-base font-semibold rounded-xl transition-colors"
+                  <div className="flex items-center justify-end gap-2">
+                    <Link
+                      href={`/recommendations?senior_id=${m.senior_id}`}
+                      className="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-base font-semibold rounded-xl border border-blue-200 transition-colors"
                     >
-                      배정 확정
-                    </button>
-                  </form>
+                      상세 보기
+                    </Link>
+                    <form action={assignMatch}>
+                      <input type="hidden" name="matchId" value={m.id} />
+                      <button
+                        type="submit"
+                        className="px-5 py-2 bg-green-600 hover:bg-green-700 text-white text-base font-semibold rounded-xl transition-colors"
+                      >
+                        배정 확정
+                      </button>
+                    </form>
+                  </div>
                 </td>
               </TableRow>
             ))
@@ -124,13 +162,22 @@ export default async function AdminPage() {
                 <td className="py-4 px-4 text-base text-gray-600">{m.seniors?.region ?? '—'}</td>
                 <td className="py-4 px-4 text-base text-gray-600">{m.seniors?.desired_job ?? '—'}</td>
                 <td className="py-4 px-4 text-base text-gray-700">
-                  {m.jobs?.title} <span className="text-gray-400 text-sm">({m.jobs?.region})</span>
+                  {m.jobs?.title}{' '}
+                  <span className="text-gray-400 text-sm">({m.jobs?.region})</span>
                   <span className="ml-2 text-blue-700 font-semibold">{m.score}점</span>
                 </td>
                 <td className="py-4 px-4 text-right">
-                  <span className="px-3 py-1 bg-green-100 text-green-700 text-sm font-semibold rounded-full">
-                    완료
-                  </span>
+                  <div className="flex items-center justify-end gap-2">
+                    <Link
+                      href={`/recommendations?senior_id=${m.senior_id}`}
+                      className="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-base font-semibold rounded-xl border border-blue-200 transition-colors"
+                    >
+                      상세 보기
+                    </Link>
+                    <span className="px-3 py-1 bg-green-100 text-green-700 text-sm font-semibold rounded-full">
+                      완료
+                    </span>
+                  </div>
                 </td>
               </TableRow>
             ))
@@ -142,13 +189,9 @@ export default async function AdminPage() {
 }
 
 function AdminSection({
-  title,
-  count,
-  children,
+  title, count, children,
 }: {
-  title: string
-  count: number
-  children: React.ReactNode
+  title: string; count: number; children: React.ReactNode
 }) {
   return (
     <section className="bg-white rounded-2xl shadow p-8 mb-8">
@@ -173,7 +216,11 @@ function AdminSection({
 }
 
 function TableRow({ children }: { children: React.ReactNode }) {
-  return <tr className="border-b border-gray-100 last:border-0 hover:bg-gray-50">{children}</tr>
+  return (
+    <tr className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
+      {children}
+    </tr>
+  )
 }
 
 function EmptyRow() {
