@@ -10,28 +10,53 @@ export type JobInput = {
   required_career: number | null
 }
 
+const REGION_MAP: Record<string, string> = {
+  '서울특별시': '서울',
+  '경기도':     '경기',
+  '인천광역시': '인천',
+}
+
+const JOB_MAP: Record<string, string> = {
+  '경비직': '경비',
+  '청소직': '청소',
+  '조리직': '조리',
+  '돌봄직': '돌봄',
+}
+
+function normalizeRegion(v: string | null): string | null {
+  if (!v) return null
+  const t = v.trim()
+  return REGION_MAP[t] ?? t
+}
+
+function normalizeJob(v: string | null): string | null {
+  if (!v) return null
+  const t = v.trim()
+  return JOB_MAP[t] ?? t
+}
+
 /**
  * 규칙 기반 매칭 점수 계산 (최대 100점)
- * - 지역 일치:  +40
- * - 직종 일치:  +40  (부분 문자열 포함)
+ * - 지역 일치:  +40  (정규화 후 비교)
+ * - 직종 일치:  +40  (정규화 + 부분 문자열 포함)
  * - 경력 충족:  +20
  */
 export function computeScore(senior: SeniorInput, job: JobInput): number {
   let score = 0
 
-  if (senior.region && job.region && senior.region.trim() === job.region.trim()) {
-    score += 40
-  }
+  const sr = normalizeRegion(senior.region)
+  const jr = normalizeRegion(job.region)
+  if (sr && jr && sr === jr) score += 40
 
-  if (senior.desired_job && job.job_type) {
-    const s = senior.desired_job.trim()
-    const j = job.job_type.trim()
-    if (s.includes(j) || j.includes(s)) score += 40
-  }
+  const sj = normalizeJob(senior.desired_job)
+  const jj = normalizeJob(job.job_type)
+  if (sj && jj && (sj.includes(jj) || jj.includes(sj))) score += 40
 
-  if (senior.career_years != null && job.required_career != null && senior.career_years >= job.required_career) {
-    score += 20
-  }
+  if (
+    senior.career_years != null &&
+    job.required_career != null &&
+    senior.career_years >= job.required_career
+  ) score += 20
 
   return score
 }
